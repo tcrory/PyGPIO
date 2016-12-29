@@ -1,3 +1,7 @@
+PyGPIO - (c) 2016-12-28 Timothy Crory
+
+Based upon the ideas implemented by:
+
 pygpiod - (c) 2014-06-12 Leif Sawyer
 
 loosely based on a script by Alex Eames http://RasPi.tv
