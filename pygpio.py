@@ -3,7 +3,7 @@
 #    -------------   [] 17 - Shutdown / Reboot
 #   |    PiTFT    |  [] 22 - IP Address / VNC Server
 #   |   Display   |  [] 23 - Pixel Desktop ("startx") / RetroPie ("emulationstation")
-#    -------------   [] 27 - Display Power-Save / Backlight
+#    -------------   [] 27 - Toggle Backlight
 
 import RPi.GPIO as GPIO
 import os, subprocess, time, textwrap
