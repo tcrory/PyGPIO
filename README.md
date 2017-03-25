@@ -1,4 +1,4 @@
-PyGPIO - (c) 2016-12-28 Timothy Crory
+PyGPIO - (c) 2016-2017 Timothy Crory
 
 Requires RPi.GPIO: http://sourceforge.net/projects/raspberry-gpio-python
 
