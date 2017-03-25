@@ -13,6 +13,7 @@ Configuration settings can be set at the head of the file, including changing
 which channels should be used and how long buttons must be pressed to trigger
 the effects.
 
+```
 The script is designed to be run from the .bashrc file as a background process.
     After logging in to the raspberry pi:
         # sudo nano ~/.bashrc
@@ -22,6 +23,7 @@ The script is designed to be run from the .bashrc file as a background process.
         [Ctrl] + [X]
         [Y]
         [Enter]
+```
 
 Based upon the ideas implemented within:
 
