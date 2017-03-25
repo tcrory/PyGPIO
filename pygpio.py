@@ -20,8 +20,8 @@ LongButtonTimeReq       = 3     # secs
 DisplayBacklightOut     = 18
 DisplayBacklightTimeout = 1800  # secs (30 mins)
 
-pywrap  = textwrap.TextWrapper(width=52, initial_indent=" ", subsequent_indent="\t")
-pywrap2 = textwrap.TextWrapper(width=52, initial_indent="\t", subsequent_indent="\t")
+pywrap  = textwrap.TextWrapper(width=52, initial_indent=" ", subsequent_indent="        ")
+pywrap2 = textwrap.TextWrapper(width=52, initial_indent="        ", subsequent_indent="        ")
 ipwrap  = textwrap.TextWrapper(width=52, initial_indent=" ", subsequent_indent=" ")
 
 # GPIO Button Base Class
@@ -37,6 +37,12 @@ class PyGPIO:
         GPIO.setup(self.channel, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         # Create an event handler for button presses on the GPIO channel.
         GPIO.add_event_detect(self.channel, GPIO.FALLING, callback=self.callbackPress, bouncetime=300)
+    def usage(self):
+        print(' Override the usage method in {}.'.format(self.__class__))
+    def shortpress(self):
+        print(' Override the shortpress method in {}.'.format(self.__class__))
+    def longpress(self):
+        print(' Override the longpress method in {}'.format(self.__class__))
     def callbackPress(self, channel):
         """Button pressed event handler."""
         # Capture the time of the button press.
@@ -72,12 +78,6 @@ class PyGPIO:
             print(' Button press not recorded on channel {}.'.format(self.channel))
             self.timeUp = None
             return
-    def usage(self):
-        print(' Override the usage method in {}.'.format(self.__class__))
-    def shortpress(self):
-        print(' Override the shortpress method in {}.'.format(self.__class__))
-    def longpress(self):
-        print(' Override the longpress method in {}'.format(self.__class__))
 
 # Shutdown/Reboot Class
 class ShutdownReboot(PyGPIO):
@@ -98,31 +98,6 @@ class ShutdownReboot(PyGPIO):
 # IP Address / VNC Server Class
 class IpVnc(PyGPIO):
     """Display IP Address on press. Start/Kill VNC Server on short/long press."""
-    def startVNC(self):
-        """Try to start the VNC Server on display 1."""
-        try:
-            subprocess.check_call(['sudo', '-u', 'pi', 'vncserver', '-geometry', '1920x1080', ':1'], timeout=30)
-        except subprocess.CalledProcessError as err:
-            print('')
-            print(pywrap.fill('Error: Unable to start the VNC server.'))
-            print(pywrap2.fill('"{}" Command returned ({}).'.format(err.cmd, err.returncode)))
-        except subprocess.TimeoutExpired as err:
-            print('')
-            print(pywrap.fill('Error: Unable to start the VNC server.'))
-            print(pywrap2.fill('"{}" Command timed out after {} seconds.'.format(err.cmd, err.timeout)))
-    def endVNC(self):
-        """Try to stop the VNC Server on display 1."""
-        try:
-            subprocess.check_call(['sudo', '-u', 'pi', 'vncserver', '-kill', ':1'], timeout=30)
-            print('\n VNC server stopped successfully.\n')
-        except subprocess.CalledProcessError as err:
-            print('')
-            print(pywrap.fill('Error: Unable to stop the VNC server.'))
-            print(pywrap2.fill('"{}" Command returned ({}).'.format(' '.join(err.cmd), err.returncode)))
-        except subprocess.TimeoutExpired as err:
-            print('')
-            print(pywrap.fill('Error: Unable to stop the VNC server.'))
-            print(pywrap2.fill('"{}" Command timed out after {} seconds.'.format(' '.join(err.cmd), err.timeout)))
     def usage(self):
         """Display button usage and IP addresses."""
         # IP addresses.
@@ -135,7 +110,6 @@ class IpVnc(PyGPIO):
             for line in out:
                 if line: print(ipwrap.fill(line))
             print('')
-
         # Usage message.
         print('')
         print(pywrap.fill('Usage: Hold button for {} second{} to start a VNC server on display 1.'.format(self.shortTime, '' if self.shortTime == 1 else 's')))
@@ -146,6 +120,31 @@ class IpVnc(PyGPIO):
     def longpress(self):
         """Stop VNC server on display 1."""
         self.endVNC()
+    def startVNC(self):
+        """Try to start the VNC Server on display 1."""
+        try:
+            subprocess.check_call(['vncserver', '-geometry', '1920x1080', ':1'], timeout=30)
+        except subprocess.CalledProcessError as err:
+            print('')
+            print(pywrap.fill('Error: Unable to start the VNC server.'))
+            print(pywrap2.fill('"{}" Command returned ({}).'.format(err.cmd, err.returncode)))
+        except subprocess.TimeoutExpired as err:
+            print('')
+            print(pywrap.fill('Error: Unable to start the VNC server.'))
+            print(pywrap2.fill('"{}" Command timed out after {} seconds.'.format(err.cmd, err.timeout)))
+    def endVNC(self):
+        """Try to stop the VNC Server on display 1."""
+        try:
+            subprocess.check_call(['vncserver', '-kill', ':1'], timeout=30)
+            print('\n VNC server stopped successfully.\n')
+        except subprocess.CalledProcessError as err:
+            print('')
+            print(pywrap.fill('Error: Unable to stop the VNC server.'))
+            print(pywrap2.fill('"{}" Command returned ({}).'.format(' '.join(err.cmd), err.returncode)))
+        except subprocess.TimeoutExpired as err:
+            print('')
+            print(pywrap.fill('Error: Unable to stop the VNC server.'))
+            print(pywrap2.fill('"{}" Command timed out after {} seconds.'.format(' '.join(err.cmd), err.timeout)))
 
 # Pixel Desktop ("startx") / RetroPie ("emulationstation")
 class PixelRetroPie(PyGPIO):
@@ -155,10 +154,37 @@ class PixelRetroPie(PyGPIO):
         print(pywrap.fill('Usage: Hold button for {} second{} to start the Pixel desktop.'.format(self.shortTime, '' if self.shortTime == 1 else 's')))
         print(pywrap2.fill('Hold button for {} seconds to start RetroPie.\n'.format(self.longTime)))
     def shortpress(self):
-        os.system('sudo -u pi startx')
+        self.startPixel()
     def longpress(self):
-        os.system('sudo -u pi emulationstation')
-            
+        self.startRetroPie()
+    def startPixel(self):
+        """Try to start the Pixel desktop."""
+        try:
+            # Copy the steps that startx performs.
+            my_env = os.environ.copy()
+            my_env['XAUTHORITY'] = '/home/pi/.Xauthority'
+            xserverauthfile = subprocess.check_output(['mktemp', '--tmpdir', 'serverauth.XXXXXXXXXX']).strip()
+            subprocess.call(['xauth', '-q', '-f', xserverauthfile, '<<', 'EOF'])
+            subprocess.check_call(['xinit', '/etc/X11/xinit/xinitrc', '--', '/etc/X11/xinit/xserverrc',
+                                   ':0', 'vt1', '-auth', xserverauthfile], env=my_env)
+        except subprocess.CalledProcessError as err:
+            print('')
+            print(pywrap.fill('Error: Unable to start the Pixel desktop.'))
+            print(pywrap2.fill('"{}" Command returned ({}).'.format(err.cmd, err.returncode)))
+        finally:
+            # Clean up the temp files and vt.
+            if xserverauthfile:
+                subprocess.call(['rm', '-f', '"{}"'.format(xserverauthfile)])
+            subprocess.call(['deallocvt'])
+    def startRetroPie(self):
+        """Try to start RetroPie."""
+        try:
+            subprocess.check_call(['emulationstation'])
+        except subprocess.CalledProcessError as err:
+            print('')
+            print(pywrap.fill('Error: Unable to start RetroPie.'))
+            print(pywrap2.fill('"{}" Command returned ({}).'.format(err.cmd, err.returncode)))
+
 # Display Backlight Class
 class Display(PyGPIO):
     """Disabled Screen Blanking by setting BLANK_TIME=0 in the /etc/kbd/config file.
@@ -173,6 +199,20 @@ class Display(PyGPIO):
         GPIO.setup(self.output, GPIO.OUT)
         # Turn the display's backlight on.
         self.on()
+    def usage(self):
+        pass
+    def shortpress(self):
+        pass
+    def longpress(self):
+        pass
+    def callbackPress(self, channel):
+        """Button pressed event handler."""
+        if self.timeOn:
+            self.off()
+        else:
+            self.on()
+    def callbackRelease(self, channel):
+        pass
     def on(self):
         #print('Turning on display on channel {}.'.format(self.output))        # DEBUG
         GPIO.output(self.output, True)
@@ -188,21 +228,7 @@ class Display(PyGPIO):
         if self.timeOn:
             if int(time.time() - self.timeOn) >= self.timeout:
                 self.off()
-    def callbackPress(self, channel):
-        """Button pressed event handler."""
-        if self.timeOn:
-            self.off()
-        else:
-            self.on()
-    def callbackRelease(self, channel):
-        pass
-    def usage(self):
-        pass
-    def shortpress(self):
-        pass
-    def longpress(self):
-        pass
-    
+
 def main():
     # Set GPIO mode.
     GPIO.setmode(GPIO.BCM)
@@ -223,4 +249,13 @@ def main():
     GPIO.cleanup()           # clean up GPIO on normal exit
 
 if __name__ == "__main__":
-    main()
+    import fcntl
+    lockpath = '/tmp/pygpio.lock'
+    with open(lockpath, 'w') as lockfile:
+        try:
+            fcntl.flock(lockfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lockfile.write(str(os.getpid()))
+            main()
+        except OSError:
+            # Daemon already running.
+            pass

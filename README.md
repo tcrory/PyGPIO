@@ -13,6 +13,15 @@ Configuration settings can be set at the head of the file, including changing
 which channels should be used and how long buttons must be pressed to trigger
 the effects.
 
+The script is designed to be run from the .bashrc file as a background process.
+    After logging in to the raspberry pi:
+        # sudo nano ~/.bashrc
+    At the end of the .bashrc file, type:
+        { /usr/bin/python3 /full/path/to/script/pygpio.py & disown; }
+    Save and exit by pressing:
+        [Ctrl] + [X]
+        [Y]
+        [Enter]
 
 Based upon the ideas implemented within:
 
